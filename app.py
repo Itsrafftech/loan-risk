@@ -14,15 +14,15 @@ from model.train import BASE_FEATURES
 
 st.set_page_config(
     page_title="Prediktor Risiko Pinjaman",
-    page_icon="💳",
+    page_icon=None,
     layout="centered",
     initial_sidebar_state="expanded",
 )
 
 RISK_STYLE = {
-    "Rendah": {"color": "#16a34a", "bg": "#dcfce7", "icon": "✅"},
-    "Sedang": {"color": "#d97706", "bg": "#fef3c7", "icon": "⚠️"},
-    "Tinggi": {"color": "#dc2626", "bg": "#fee2e2", "icon": "🚨"},
+    "Rendah": {"color": "#15803D"},
+    "Sedang": {"color": "#CA8A04"},
+    "Tinggi": {"color": "#B91C1C"},
 }
 
 RUPIAH_FEATURES = {"MonthlyIncome", "IncomePerDependent"}
@@ -30,38 +30,220 @@ RATIO_FEATURES = {"DebtRatio", "RevolvingUtilizationOfUnsecuredLines"}
 
 CUSTOM_CSS = """
 <style>
-    .block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 800px; }
-    div[data-testid="stMetric"] {
-        background: rgba(127,127,127,0.06);
-        border-radius: 10px;
-        padding: 0.75rem 1rem;
-    }
-    .risk-card {
-        border-radius: 14px;
-        padding: 1.25rem 1.5rem;
-        margin: 0.75rem 0 1.25rem 0;
-    }
-    .risk-card h2 { margin: 0 0 0.25rem 0; }
-    .risk-card p { margin: 0; opacity: 0.85; }
-    .factor-list { margin-top: 0.5rem; }
-    .prog-track {
-        background: rgba(127,127,127,0.18);
-        border-radius: 8px;
-        height: 24px;
-        width: 100%;
-        overflow: hidden;
-    }
-    .prog-fill {
-        height: 100%;
-        border-radius: 8px;
-        text-align: right;
-        color: white;
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 24px;
-        padding-right: 10px;
-        white-space: nowrap;
-    }
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+    --lp-bg: #FFFFFF;
+    --lp-bg-secondary: #F8FAFC;
+    --lp-border: #E2E8F0;
+    --lp-text: #0F172A;
+    --lp-text-muted: #64748B;
+    --lp-accent: #312E81;
+}
+
+html, body, .stApp, .stApp *, [data-testid="stHeader"] *, [data-testid="stSidebar"] * {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.stApp { background: var(--lp-bg); }
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600 !important;
+    color: var(--lp-text) !important;
+    letter-spacing: -0.01em;
+}
+
+.block-container { padding-top: 2.5rem; padding-bottom: 3rem; max-width: 760px; }
+
+[data-testid="stCaptionContainer"] p {
+    color: var(--lp-text-muted) !important;
+    font-size: 0.85rem;
+}
+
+/* ---------- Sidebar ---------- */
+[data-testid="stSidebar"] {
+    background: var(--lp-bg-secondary);
+    border-right: 1px solid var(--lp-border);
+}
+[data-testid="stSidebar"] h1 {
+    font-size: 1.05rem !important;
+    padding-bottom: 1.25rem;
+}
+
+/* Sidebar nav radio group styled as a tab list */
+[data-testid="stRadioGroup"] { gap: 2px; }
+label[data-testid="stRadioOption"] {
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 2px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+label[data-testid="stRadioOption"]:hover {
+    background: rgba(49, 46, 129, 0.06);
+}
+label[data-testid="stRadioOption"][data-selected="true"] {
+    background: rgba(49, 46, 129, 0.10);
+    border-left: 3px solid var(--lp-accent);
+}
+label[data-testid="stRadioOption"] p {
+    color: var(--lp-text) !important;
+    font-weight: 500 !important;
+    margin: 0;
+    font-size: 0.9rem;
+}
+label[data-testid="stRadioOption"][data-selected="true"] p {
+    color: var(--lp-accent) !important;
+    font-weight: 600 !important;
+}
+/* hide the decorative radio dot, keep the label click target */
+label[data-testid="stRadioOption"] > div > div > div:not(:has(p)) {
+    display: none;
+}
+
+/* Sidebar model info card */
+.lp-info-card {
+    border: 1px solid var(--lp-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: var(--lp-bg);
+}
+.lp-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+}
+.lp-info-row + .lp-info-row { border-top: 1px solid var(--lp-border); }
+.lp-info-label { color: var(--lp-text-muted); font-size: 0.78rem; }
+.lp-info-value { color: var(--lp-text); font-size: 0.78rem; font-weight: 600; text-align: right; }
+
+/* ---------- Card sections in main form ---------- */
+/* Streamlit renders st.container(border=True) as a stLayoutWrapper whose
+   stVerticalBlock's first child is an stElementContainer directly (the form's
+   own outer wrapper instead nests further stLayoutWrappers first), so that
+   structural difference is what distinguishes our two cards from the form shell. */
+[data-testid="stForm"] [data-testid="stLayoutWrapper"]:has(> [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:first-child) {
+    border: 1px solid var(--lp-border) !important;
+    border-radius: 12px !important;
+    background: var(--lp-bg-secondary) !important;
+    box-shadow: none !important;
+    padding: 1.25rem !important;
+    margin-bottom: 1.25rem;
+    display: block;
+}
+.lp-card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--lp-accent);
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--lp-border);
+}
+
+/* ---------- Sliders ---------- */
+[data-testid="stSlider"] label p { font-weight: 500; color: var(--lp-text); font-size: 0.88rem; }
+[data-testid="stSliderThumbValue"] p { color: var(--lp-accent) !important; font-weight: 600 !important; }
+[data-testid="stSliderTickBar"] p { color: var(--lp-text-muted) !important; font-size: 0.75rem; }
+
+/* ---------- Number input ---------- */
+[data-testid="stNumberInputContainer"] {
+    border: 1px solid var(--lp-border) !important;
+    border-radius: 8px !important;
+    background: var(--lp-bg) !important;
+    box-shadow: none !important;
+}
+[data-testid="stNumberInputField"] {
+    color: var(--lp-text) !important;
+    font-weight: 500;
+}
+
+/* ---------- Tooltip help icon ---------- */
+[data-testid="stTooltipIcon"] button { color: var(--lp-text-muted) !important; }
+[data-testid="stTooltipIcon"] button:hover { color: var(--lp-accent) !important; }
+div[data-baseweb="tooltip"] { font-family: 'Poppins', sans-serif !important; }
+
+/* ---------- Buttons ---------- */
+[data-testid="stFormSubmitButton"] button {
+    background: var(--lp-accent) !important;
+    border: 1px solid var(--lp-accent) !important;
+    color: #FFFFFF !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+    padding: 0.6rem 0 !important;
+}
+[data-testid="stFormSubmitButton"] button:hover {
+    background: #26235f !important;
+    border-color: #26235f !important;
+}
+[data-testid="stFormSubmitButton"] button p { color: #FFFFFF !important; }
+
+/* ---------- Dataframe ---------- */
+[data-testid="stDataFrame"] { border: 1px solid var(--lp-border) !important; border-radius: 8px; }
+
+/* ---------- Result card ---------- */
+.lp-result-card {
+    border: 1px solid var(--lp-border);
+    border-radius: 12px;
+    padding: 1.5rem 1.5rem 1.25rem 1.5rem;
+    margin: 0 0 1.5rem 0;
+    background: var(--lp-bg-secondary);
+    text-align: left;
+}
+.lp-result-eyebrow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--lp-text-muted);
+    font-weight: 600;
+    margin: 0 0 0.6rem 0;
+}
+.lp-result-main {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    text-align: left;
+}
+.lp-result-level { font-size: 1.65rem; font-weight: 700; margin: 0; }
+.lp-result-pct { font-size: 1.65rem; font-weight: 700; margin: 0; }
+.lp-result-subtitle { color: var(--lp-text-muted); font-size: 0.85rem; margin: 0.2rem 0 1.1rem 0; text-align: left; }
+.lp-gauge-track {
+    background: var(--lp-border);
+    border-radius: 6px;
+    height: 8px;
+    width: 100%;
+    overflow: hidden;
+}
+.lp-gauge-fill { height: 100%; border-radius: 6px; }
+
+.lp-factors-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--lp-text-muted);
+    margin: 0 0 0.5rem 0;
+    text-align: left;
+}
+.lp-factor-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--lp-border);
+    text-align: left;
+}
+.lp-factor-row:last-child { border-bottom: none; }
+.lp-factor-label { display: flex; align-items: center; gap: 0.55rem; color: var(--lp-text); font-size: 0.88rem; }
+.lp-factor-dot { width: 6px; height: 6px; min-width: 6px; border-radius: 50%; display: inline-block; }
+.lp-factor-value { color: var(--lp-text-muted); font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
+.lp-no-factors { color: var(--lp-text-muted); font-size: 0.88rem; text-align: left; }
 </style>
 """
 
@@ -92,43 +274,55 @@ def get_model_bundle():
 def render_risk_card(result: dict):
     level = result["risk_level"]
     probability = result["probability"]
-    style = RISK_STYLE[level]
+    color = RISK_STYLE[level]["color"]
     pct = round(probability * 100, 1)
-    # Keep the fill visually meaningful even for very small probabilities.
-    bar_pct = max(pct, 3)
+    bar_pct = max(pct, 3)  # keep the fill visually meaningful even for tiny probabilities
     pct_label = format_id(pct, 1)
 
     st.markdown(
         f"""
-        <div class="risk-card" style="background:{style['bg']}; border: 1px solid {style['color']}44;">
-            <h2 style="color:{style['color']};">{style['icon']} Risiko {level}</h2>
-            <p style="color:{style['color']};">Estimasi probabilitas gagal bayar: <strong>{pct_label}%</strong></p>
-        </div>
-        <div class="prog-track">
-            <div class="prog-fill" style="width:{bar_pct}%; background:{style['color']};">{pct_label}%</div>
+        <div class="lp-result-card" style="border-color:{color}33;">
+            <p class="lp-result-eyebrow">Hasil Prediksi</p>
+            <div class="lp-result-main">
+                <span class="lp-result-level" style="color:{color};">Risiko {level}</span>
+                <span class="lp-result-pct" style="color:{color};">{pct_label}%</span>
+            </div>
+            <p class="lp-result-subtitle">Estimasi probabilitas gagal bayar berdasarkan profil yang dimasukkan</p>
+            <div class="lp-gauge-track">
+                <div class="lp-gauge-fill" style="width:{bar_pct}%; background:{color};"></div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown("#### Faktor utama yang memengaruhi prediksi ini")
     factors = result["top_factors"]
+    factors_html = ['<p class="lp-factors-title">Faktor Utama yang Memengaruhi Prediksi</p>']
     if not factors:
-        st.markdown("Tidak ditemukan faktor risiko signifikan yang meningkatkan risiko untuk pemohon ini.")
-    else:
-        lines = "\n".join(
-            f"- **{f['label']}**: {format_factor_value(f['feature'], f['value'])}" for f in factors
+        factors_html.append(
+            '<p class="lp-no-factors">Tidak ditemukan faktor risiko signifikan yang meningkatkan risiko untuk pemohon ini.</p>'
         )
-        st.markdown(lines)
+    else:
+        for f in factors:
+            value_label = format_factor_value(f["feature"], f["value"])
+            factors_html.append(
+                f"""
+                <div class="lp-factor-row">
+                    <span class="lp-factor-label"><span class="lp-factor-dot" style="background:{color};"></span>{f['label']}</span>
+                    <span class="lp-factor-value">{value_label}</span>
+                </div>
+                """
+            )
+    st.markdown("".join(factors_html), unsafe_allow_html=True)
 
 
 def page_predict(bundle):
-    st.title("💳 Prediktor Risiko Pinjaman")
+    st.title("Prediktor Risiko Pinjaman")
     st.caption("Perkirakan kemungkinan pemohon pinjaman akan gagal bayar, berdasarkan profil keuangannya.")
 
     with st.form("predict_form"):
-        col1, col2 = st.columns(2)
-        with col1:
+        with st.container(border=True):
+            st.markdown('<p class="lp-card-title">Data Pribadi</p>', unsafe_allow_html=True)
             age = st.slider("Usia (tahun)", 18, 90, 35)
             monthly_income = st.number_input(
                 "Penghasilan Bulanan (Rp)",
@@ -139,17 +333,9 @@ def page_predict(bundle):
             )
             st.caption(format_rupiah(monthly_income))
             dependents = st.slider("Jumlah Tanggungan", 0, 10, 0)
-            debt_ratio = st.slider(
-                "Rasio Utang", 0.0, 2.0, 0.30, step=0.01,
-                help="Total pembayaran utang bulanan dibagi penghasilan bulanan.",
-            )
-            st.caption(f"Nilai: {format_id(debt_ratio, 2)}")
-            utilization = st.slider(
-                "Tingkat Penggunaan Kredit", 0.0, 1.5, 0.30, step=0.01,
-                help="Saldo kartu/kredit dibandingkan dengan limit kredit.",
-            )
-            st.caption(f"Nilai: {format_id(utilization, 2)}")
-        with col2:
+
+        with st.container(border=True):
+            st.markdown('<p class="lp-card-title">Riwayat Kredit</p>', unsafe_allow_html=True)
             open_loans = st.slider("Jumlah Pinjaman Aktif", 0, 40, 5)
             late_30_59 = st.slider(
                 "Keterlambatan 30 Hari", 0, 15, 0,
@@ -163,6 +349,16 @@ def page_predict(bundle):
                 "Keterlambatan 90 Hari", 0, 15, 0,
                 help="Jumlah keterlambatan pembayaran 90 hari atau lebih.",
             )
+            debt_ratio = st.slider(
+                "Rasio Utang", 0.0, 2.0, 0.30, step=0.01,
+                help="Total pembayaran utang bulanan dibagi penghasilan bulanan.",
+            )
+            st.caption(f"Nilai: {format_id(debt_ratio, 2)}")
+            utilization = st.slider(
+                "Tingkat Penggunaan Kredit", 0.0, 1.5, 0.30, step=0.01,
+                help="Saldo kartu/kredit dibandingkan dengan limit kredit.",
+            )
+            st.caption(f"Nilai: {format_id(utilization, 2)}")
 
         submitted = st.form_submit_button("Prediksi Risiko", use_container_width=True)
 
@@ -184,7 +380,7 @@ def page_predict(bundle):
 
 
 def page_model_info(bundle):
-    st.title("📊 Informasi Model")
+    st.title("Informasi Model")
     st.caption(
         f"Model terbaik yang dipilih: **{bundle['model_name']}** "
         "(dipilih berdasarkan ROC-AUC pada data uji)"
@@ -203,7 +399,7 @@ def page_model_info(bundle):
     )
     st.markdown("#### Perbandingan Model")
     st.dataframe(
-        metrics_df.style.format("{:.3f}").highlight_max(axis=0, color="#dcfce7"),
+        metrics_df.style.format("{:.3f}").highlight_max(axis=0, color="#E0E7FF"),
         use_container_width=True,
     )
 
@@ -226,7 +422,7 @@ def page_model_info(bundle):
     values = list(importance.values())
 
     fig2, ax2 = plt.subplots(figsize=(6, 5))
-    sns.barplot(x=values, y=labels, ax=ax2, color="#2563eb")
+    sns.barplot(x=values, y=labels, ax=ax2, color="#312E81")
     ax2.set_xlabel("Tingkat Kepentingan Relatif")
     ax2.set_ylabel("")
     ax2.set_title(f"Tingkat Kepentingan Fitur ({bundle['model_name']})")
@@ -241,7 +437,7 @@ def page_model_info(bundle):
 
 
 def page_about():
-    st.title("ℹ️ Tentang")
+    st.title("Tentang")
     st.markdown(
         """
 Aplikasi ini memperkirakan probabilitas seorang pemohon pinjaman akan gagal
@@ -300,9 +496,22 @@ def main():
     page = st.sidebar.radio(
         "Navigasi", ["Prediksi", "Informasi Model", "Tentang"], label_visibility="collapsed"
     )
-    st.sidebar.markdown("---")
-    st.sidebar.caption(f"Model aktif: **{bundle['model_name']}**")
-    st.sidebar.caption(f"ROC-AUC: {format_id(bundle['metrics'][bundle['model_name']]['roc_auc'], 3)}")
+    st.sidebar.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
+    st.sidebar.markdown(
+        f"""
+        <div class="lp-info-card">
+            <div class="lp-info-row">
+                <span class="lp-info-label">Model Aktif</span>
+                <span class="lp-info-value">{bundle['model_name']}</span>
+            </div>
+            <div class="lp-info-row">
+                <span class="lp-info-label">ROC-AUC</span>
+                <span class="lp-info-value">{format_id(bundle['metrics'][bundle['model_name']]['roc_auc'], 3)}</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if page == "Prediksi":
         page_predict(bundle)
